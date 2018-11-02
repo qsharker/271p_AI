@@ -27,7 +27,6 @@ class MyAI( AI ):
 		self.flagSet = set()
 		self.unsolvedBlcks = set()
 		self.map = [[None for x in range(colDimension)] for y in range(rowDimension)]
-		self.isStart = True
 		self.x = startX
 		self.y = startY
 		self.action = AI.Action.UNCOVER
