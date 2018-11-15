@@ -25,7 +25,7 @@ class MyAI( AI ):
 		self.totalMines = totalMines
 		self.uncvrSet = set()
 		self.flagSet = set()
-		self.unsolvedBlcks = set()
+		self.unsolvedBlcks = set()	# the blocks with hints and in the boarder
 		self.map = [[None for x in range(colDimension)] for y in range(rowDimension)]
 		self.x = startX
 		self.y = startY
@@ -41,10 +41,9 @@ class MyAI( AI ):
 				if not (_x == x and _y == y):
 					yield (_x, _y)
 
-	def markAllNghbrSafe(self, x, y):
-		for (_x, _y) in self.getAdjBlck(x, y):
-			if self.map[_y][_x] is None:
-				self.uncvrSet.add((_x, _y))
+	def markAllNghbrSafe(self, blcks):
+		for _x, _y in blcks:
+			self.uncvrSet.add((_x, _y))
 
 
 	def UncvrRandom(self):
@@ -60,39 +59,36 @@ class MyAI( AI ):
 		if number >= 0:
 			# perceive a hint
 			self.map[self.y][self.x] = number
-			if number == 0:
-				self.markAllNghbrSafe(self.x, self.y)
-			else:
-				self.solveClue(self.x, self.y)
-		elif number == -1:
+			self.solveClue(self.x, self.y)
+		else:
 			# perceive -1 following a FLAG or UNFLAG
 			self.map[self.y][self.x] = 'f' if self.action == AI.Action.FLAG else None
 
-		for x, y in self.unsolvedBlcks:
-			self.solveClue(x, y)
+		for _x, _y in set(self.unsolvedBlcks):
+			self.solveClue(_x, _y)
 
-
-	def markNgbrMine(self, x, y):
-		for _x, _y in self.getAdjBlck(x, y):
-			if self.map[_y][_x] is None:
-				self.flagSet.add((_x, _y))
+	def markMine(self, blcks):
+		for _x, _y in blcks:
+			self.flagSet.add((_x, _y))
 
 	def solveClue(self, x, y):
-		numUnopenBlck = 0
-		numMine = 0
+		numUnopenBlck = set()
+		numMine = set()
+		clue = self.map[y][x]
 		for a_x, a_y in self.getAdjBlck(x, y):
 			if self.map[a_y][a_x] is None:
-				numUnopenBlck += 1
+				numUnopenBlck.add((a_x, a_y))
 			elif self.map[a_y][a_x] is 'f':
-				numMine += 1 
-		
-		if self.map[y][x] == numMine:
-			self.markAllNghbrSafe(x, y)
-		elif self.map[y][x] == (numUnopenBlck + numMine):
-			self.markNgbrMine(x, y)
+				numMine.add((a_x, a_y))
+
+		if (x, y) in self.unsolvedBlcks:
+			self.unsolvedBlcks.remove((x, y))
+		if clue == len(numMine):
+			self.markAllNghbrSafe(numUnopenBlck)
+		elif clue == len(numUnopenBlck) + len(numMine):
+			self.markMine(numUnopenBlck)
 		else:
 			self.unsolvedBlcks.add((x, y))
-
 
 	def getAction(self, number: int) -> "Action Object":
 		try:
@@ -100,7 +96,7 @@ class MyAI( AI ):
 
 			if len(self.uncvrSet) > 0:
 				self.action = AI.Action.UNCOVER
-				(self.x, self.y) = self.getUncover()
+				self.x, self.y = self.getUncover()
 			elif len(self.flagSet) > 0:
 				self.action = AI.Action.FLAG
 				self.x, self.y = self.flagSet.pop()
@@ -110,6 +106,6 @@ class MyAI( AI ):
 			return Action(self.action, self.x, self.y)
 
 		except:
-			pass
-			#exc_info = sys.exc_info()
-			#traceback.print_exc(*exc_info)
+			#pass
+			exc_info = sys.exc_info()
+			traceback.print_exc(*exc_info)
