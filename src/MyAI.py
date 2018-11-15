@@ -45,7 +45,6 @@ class MyAI( AI ):
 		for _x, _y in blcks:
 			self.uncvrSet.add((_x, _y))
 
-
 	def UncvrRandom(self):
 		pass
 
@@ -90,6 +89,38 @@ class MyAI( AI ):
 		else:
 			self.unsolvedBlcks.add((x, y))
 
+	def categorizeBorders(self):
+		"""
+		Categorize border blocks by their connectivity.
+		The borders which connect with others will be grouped together
+		:param blocks: List[coordinates]
+		:return: List[connected borders]
+		"""
+		def dfs(map, x, y, ans):
+			if x < 0 or x >= self.colDimension or \
+				y < 0 or y >= self.rowDimension or \
+				map[y][x] == 0:
+					return
+			map[y][x] = 0
+			ans.append((x,y))
+			dfs(map, x + 1, y, ans)
+			dfs(map, x - 1, y, ans)
+			dfs(map, x, y + 1, ans)
+			dfs(map, x, y - 1, ans)
+
+		ans = []
+		map = [[0 for _x in range(self.colDimension)] for _y in range(self.rowDimension)]
+		for x,y in self.unsolvedBlcks:
+			map[y][x] = 1
+
+		for i in range(self.rowDimension):
+			for j in range(self.colDimension):
+				if map[i][j] == 1:
+					grp = []
+					dfs(map, j, i, grp)
+					ans.append(grp)
+		return ans
+
 	def getAction(self, number: int) -> "Action Object":
 		try:
 			self.updateMap(number)
@@ -109,3 +140,9 @@ class MyAI( AI ):
 			#pass
 			exc_info = sys.exc_info()
 			traceback.print_exc(*exc_info)
+
+
+if __name__ == '__main__':
+	ai = MyAI(4,4,1,0,1)
+	ai.unsolvedBlcks = {(0,1),(1,0),(1,1),(2,2),(2,3),(3,2)}
+	print(ai.categorizeBorders())
