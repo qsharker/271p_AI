@@ -16,7 +16,7 @@ from Action import Action
 import traceback
 import sys
 import numpy as np
-import pandas as pd
+#import pandas as pd
 
 
 class MyAI( AI ):
@@ -27,6 +27,7 @@ class MyAI( AI ):
 		self.totalMines = totalMines
 		self.uncvrSet = set()
 		self.flagSet = set()
+		self.foundMines = 0
 		self.unsolvedBlcks = set()	# the blocks with hints and in the boarder
 		self.map = [[None for x in range(colDimension)] for y in range(rowDimension)]
 		self.x = startX
@@ -97,10 +98,6 @@ class MyAI( AI ):
 						self.uncvrSet.add(loc)
 
 
-
-
-
-
 	def createMatrix(self, b: []):
 		unOpenTile = dict()
 		nbrMine = dict()
@@ -150,6 +147,26 @@ class MyAI( AI ):
 			#
 			# 	unopnTilOrd = sorted(unOpenTile.items(), lambda x: x[1])
 
+	# def solveBy(self):
+	# 	total_border_unOpen = set()
+	# 	total_border_mineLeft = 0
+	# 	for x, y in self.unsolvedBlcks:
+	# 		unOpen = set()
+	# 		mine = 0
+	# 		for ngbrx, ngbry in self.getAdjBlck(x, y):
+	# 			if self.map[ngbry][ngbrx] is None:
+	# 				unOpen.add((ngbrx, ngbry))
+	# 			elif self.map[ngbry][ngbrx] == 'f':
+	# 				mine += 1
+	# 		mineLeft = self.map[y][x] - mine
+	# 		total_border_unOpen |= unOpen
+	# 		total_border_mineLeft += mineLeft
+	# 	total_unOpen = self.getAllunOpenBlck()
+	# 	total_mineLeft = self.totalMines - self.foundMines
+	# 	if total_mineLeft - total_border_mineLeft <= 0:
+	# 		for _x, _y in total_unOpen - total_border_unOpen:
+	# 			self.uncvrSet.add((_x, _y))
+
 
 	def markAllNghbrSafe(self, blcks):
 		for _x, _y in blcks:
@@ -175,11 +192,23 @@ class MyAI( AI ):
 				return (ngbrx, ngbry)
 
 
+	def getAllunOpenBlck(self):
+		ans = set()
+		for _y in range(self.rowDimension):
+			for _x in range(self.colDimension):
+				if self.map[_y][_x] is None:
+					ans.add((_x, _y))
+		return ans
+
+
 	def getUncover(self)->('x', 'y'):
 		if len(self.uncvrSet) != 0:
 			return self.uncvrSet.pop()
 		else:
 			return self.UncvrRandom()
+
+	def hasAction(self):
+		return len(self.uncvrSet) > 0 or len(self.flagSet) > 0
 
 	def updateMap(self, number):
 		if number >= 0:
@@ -193,7 +222,7 @@ class MyAI( AI ):
 		for _x, _y in set(self.unsolvedBlcks):
 			self.solveClue(_x, _y)
 
-		if len(self.uncvrSet) == 0 and len(self.flagSet) == 0:
+		if not self.hasAction():
 			brds = self.categorizeBorders()
 			self.solveMatrix(brds)
 
@@ -225,32 +254,28 @@ class MyAI( AI ):
 		"""
 		Categorize border blocks by their connectivity.
 		The borders which connect with others will be grouped together
-		:param blocks: List[coordinates]
-		:return: List[connected borders]
+		:return: List[List[(x,y)]]
 		"""
-		def dfs(map, x, y, ans):
+		def dfs(visited, x, y, ans):
 			if x < 0 or x >= self.colDimension or \
 				y < 0 or y >= self.rowDimension or \
-				map[y][x] == 0:
+				(x, y) not in self.unsolvedBlcks or (x, y) in visited:
 					return
-			map[y][x] = 0
+			visited.add((x,y))
 			ans.append((x,y))
-			dfs(map, x + 1, y, ans)
-			dfs(map, x - 1, y, ans)
-			dfs(map, x, y + 1, ans)
-			dfs(map, x, y - 1, ans)
+			dfs(visited, x + 1, y, ans)
+			dfs(visited, x - 1, y, ans)
+			dfs(visited, x, y + 1, ans)
+			dfs(visited, x, y - 1, ans)
 
 		ans = []
-		map = [[0 for _x in range(self.colDimension)] for _y in range(self.rowDimension)]
+		visited = set()
 		for x,y in self.unsolvedBlcks:
-			map[y][x] = 1
+			if (x,y) not in visited:
+				grp = []
+				dfs(visited, x, y, grp)
+				ans.append(grp)
 
-		for i in range(self.rowDimension):
-			for j in range(self.colDimension):
-				if map[i][j] == 1:
-					grp = []
-					dfs(map, j, i, grp)
-					ans.append(grp)
 		return ans
 
 	def getAction(self, number: int) -> "Action Object":
@@ -263,6 +288,7 @@ class MyAI( AI ):
 			elif len(self.flagSet) > 0:
 				self.action = AI.Action.FLAG
 				self.x, self.y = self.flagSet.pop()
+				self.foundMines += 1
 			elif len(self.unsolvedBlcks) > 0:
 				self.action = AI.Action.UNCOVER
 				self.x, self.y = self.UncvrRandom()
@@ -280,4 +306,5 @@ class MyAI( AI ):
 if __name__ == '__main__':
 	ai = MyAI(4,4,1,0,1)
 	ai.unsolvedBlcks = {(0,1),(1,0),(1,1),(2,2),(2,3),(3,2)}
-	print(ai.categorizeBorders())
+	borders = ai.categorizeBorders()
+	print(ai.createMatrix(borders[0]))
