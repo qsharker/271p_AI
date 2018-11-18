@@ -9,5 +9,5 @@ Run the program:
 - python3 bin/Main.pyc
 - python3 bin/Main.pyc -f /path/to/world/files
 
-Run the program with debug mode:
+Run the program with debug mode (shows map step-by-step):
 - python3 bin/Main.pyc -d -f /path/to/world/files
