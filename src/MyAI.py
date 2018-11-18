@@ -15,6 +15,8 @@ from AI import AI
 from Action import Action
 import traceback
 import sys
+import numpy as np
+import pandas as pd
 
 
 class MyAI( AI ):
@@ -41,12 +43,137 @@ class MyAI( AI ):
 				if not (_x == x and _y == y):
 					yield (_x, _y)
 
+	def solveMatrix(self, brds: []):
+		# pd.set_option('display.expand_frame_repr', False)
+		# m = pd.DataFrame(self.map)
+
+		for b in brds:
+			unOpenTile, eqMtx, resMtx = self.createMatrix(b)
+			UnopnLoc = sorted(unOpenTile.items(), key=lambda x: x[1])
+			getUnpnXY = lambda ind: UnopnLoc[ind][0]
+
+			# def remvMtxElm(loc, val):
+			# 	ind = unOpenTile[loc]
+			# 	# instead of putting new clue in matrix how about make the col == 0 and subtract (val * col) to res
+
+			for i in range(1, len(b)):
+				eqDiff  =  eqMtx[i] - eqMtx[i - 1]  if resMtx[i] > resMtx[i - 1] else eqMtx[i - 1] - eqMtx[i]
+				resDiff = resMtx[i] - resMtx[i - 1] if resMtx[i] > resMtx[i - 1] else resMtx[i - 1] - resMtx[i]
+
+				lambda x: np.argwhere(x)
+				isNeg 	= eqDiff <= 0
+				isNegOne = eqDiff == -1
+				isOne 	= eqDiff == 1
+				isZero = eqDiff == 0
+				diffInd = np.argwhere(eqMtx[i] != eqMtx[i - 1])
+
+				if len(diffInd) == 1:
+					### for situation of [ 1 0 0 0] = 1/ 0
+					colInd = diffInd[0][0]
+					loc = getUnpnXY(colInd)
+					if (resMtx[i] - resMtx[i - 1]) == 0:
+						self.uncvrSet.add(loc)
+					else:
+						self.flagSet.add(loc)
+
+				if resDiff == 1:
+					### for situation of [1 0 0 -1] = 1
+					oneInd = np.argwhere(isOne)
+					negOneInd = np.argwhere(isNegOne)
+
+					if len(oneInd) == 1 and len(negOneInd) == 1:
+						mine = getUnpnXY(oneInd[0][0])
+						safe = getUnpnXY(negOneInd[0][0])
+						self.flagSet.add(mine)
+						self.uncvrSet.add(safe)
+						# self.remvMtxElm(mine, 1)
+						# self.remvMtxElm(safe, 0)
+
+				elif resDiff == 0 and isNeg.sum() == 0:
+					## for [0 1 1 1 0] = 0
+					oneIndex = np.argwhere(isOne)[0]
+					for oneI in oneIndex:
+						loc = getUnpnXY(oneI)
+						self.uncvrSet.add(loc)
+
+
+
+
+
+
+	def createMatrix(self, b: []):
+		unOpenTile = dict()
+		nbrMine = dict()
+		## count mine and unopen tile info for each border tile
+		for x, y in b:
+			for nbx, nby in self.getAdjBlck(x, y):
+				if (self.map[nby][nbx] is None) and ((nbx, nby) not in unOpenTile):
+					unOpenTile[(nbx, nby)] = len(unOpenTile)
+				if self.map[nby][nbx] == 'f':
+					nbrMine[(x, y)] = 1 if (x, y) not in nbrMine else nbrMine[(x, y)] + 1
+
+		## Putting border info into matrix
+		resMtx = np.zeros(len(b))
+		eqMtx = np.zeros((len(b), len(unOpenTile)))
+		for i, loc in enumerate(b):
+			x, y = loc
+			numMine = nbrMine[(x, y)] if (x, y) in nbrMine else 0
+			resMtx[i] = self.map[y][x] - numMine
+			for nbx, nby in self.getAdjBlck(x, y):
+				if self.map[nby][nbx] is None:
+					eqMtx[i][unOpenTile[(nbx, nby)]] = 1
+
+		return unOpenTile, eqMtx, resMtx
+
+
+
+					
+
+			# if len(unOpenTile) <= totalEq:
+			# 	for i, tile in enumerate(np.linalg.solve(eqMtx, resMtx)):
+			# 		loc = sortTileOrd[i][0]
+			# 		if tile == 1:
+			# 			self.flagSet.add(loc)
+			# 		else:
+			# 			self.uncvrSet.add(loc)
+
+
+			# 	resMtx = np.zero((len(b), 1))
+			# 	eqMtx = np.zero((len(b), len(unOpenTile)))
+			#
+			# 	for i, loc in enumerate(b):
+			# 		x, y = loc
+			# 		resMtx[i] = self.map[y][x] - nbrMine[(x, y)]
+			# 		for nbx, nby in self.getAdjBlck(x, y):
+			# 			if self.map[nbx, nby] is None:
+			# 				eqMtx[i][unOpenTile[(nbx, nby)]] = 1
+			#
+			# 	unopnTilOrd = sorted(unOpenTile.items(), lambda x: x[1])
+
+
 	def markAllNghbrSafe(self, blcks):
 		for _x, _y in blcks:
 			self.uncvrSet.add((_x, _y))
 
 	def UncvrRandom(self):
-		pass
+		minPb = 1.
+		for x, y in self.unsolvedBlcks:
+			none = 0.
+			mine = 0.
+			for ngbrx, ngbry in self.getAdjBlck(x, y):
+				if self.map[ngbry][ngbrx] is None:
+					none += 1.
+				elif self.map[ngbry][ngbrx] == 'f':
+					mine += 1
+
+			pb = (self.map[y][x] - mine) / none
+			if pb < minPb:
+				minPb = pb
+				tile = (x, y)
+		for ngbrx, ngbry in self.getAdjBlck(*tile):
+			if self.map[ngbry][ngbrx] is None:
+				return (ngbrx, ngbry)
+
 
 	def getUncover(self)->('x', 'y'):
 		if len(self.uncvrSet) != 0:
@@ -65,6 +192,11 @@ class MyAI( AI ):
 
 		for _x, _y in set(self.unsolvedBlcks):
 			self.solveClue(_x, _y)
+
+		if len(self.uncvrSet) == 0 and len(self.flagSet) == 0:
+			brds = self.categorizeBorders()
+			self.solveMatrix(brds)
+
 
 	def markMine(self, blcks):
 		for _x, _y in blcks:
@@ -131,6 +263,9 @@ class MyAI( AI ):
 			elif len(self.flagSet) > 0:
 				self.action = AI.Action.FLAG
 				self.x, self.y = self.flagSet.pop()
+			elif len(self.unsolvedBlcks) > 0:
+				self.action = AI.Action.UNCOVER
+				self.x, self.y = self.UncvrRandom()
 			else:
 				self.action = AI.Action.LEAVE
 
