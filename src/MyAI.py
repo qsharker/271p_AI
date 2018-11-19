@@ -263,10 +263,10 @@ class MyAI( AI ):
 					return
 			visited.add((x,y))
 			ans.append((x,y))
-			dfs(visited, x + 1, y, ans)
-			dfs(visited, x - 1, y, ans)
-			dfs(visited, x, y + 1, ans)
-			dfs(visited, x, y - 1, ans)
+			for i in [-1, 0, 1]:
+				for j in [-1, 0, 1]:
+					if not (i == 0 and j == 0):
+						dfs(visited, x+i, y+j, ans)
 
 		ans = []
 		visited = set()
